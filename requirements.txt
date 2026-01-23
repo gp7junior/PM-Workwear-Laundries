@@ -1,0 +1,9 @@
+feast[redis]
+pandas
+scikit-learn
+redis
+pyarrow
+streamlit
+joblib
+plotly
+numpy
