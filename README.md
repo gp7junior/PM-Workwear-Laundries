@@ -56,7 +56,24 @@ Implement the logic to create the binary target variable (is_failing_next_7_days
 - Crucially, ensure no look-ahead leakage. 
 - Output: The labeling function/code and a descriptive statistic of the resulting target variable imbalance (e.g., percentage of positive labels). 
 
+### Solution
+
 to run 
 ```bash
 python3 labelling/pipeline_labeling.py
+```
+
+## Task 3: Feature Construction 
+
+Implement code to calculate at least eight (8) high-quality features. These must combine data from Telemetry and Metadata: 
+ 
+1. Five (5) rolling window statistics (e.g., mean, max, standard deviation) over a 7-day window for continuous sensor variables (Vibration, Temperature, Pressure). 
+ 
+2. Three (3) binary, categorical, or time-based features (e.g., Time since last major maintenance, Machine age bin, One-Hot Encoding of location). 
+
+### Solution
+
+```
+bash
+python3 feature_construction/feature_engineering.py
 ```

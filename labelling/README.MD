@@ -17,8 +17,6 @@ Because telemetry (recorded every 15 mins) and failures (recorded at the exact m
 * The script looks ahead from every sensor reading to find the *nearest future failure* for that specific machine ID.
 * A `tolerance` of 30 days is applied to optimize processing and ensure we aren't matching failures from the distant future.
 
-
-
 ### 3. Leakage Prevention
 To ensure the ML model remains valid for real-world production:
 * All helper columns used for calculation (like the exact `failure_timestamp`) are dropped before the final file is saved.
@@ -39,3 +37,4 @@ Healthy (0):    479,446 (90.97%)
 Failing (1):    47,580 (9.03%)
 ========================================
 ```
+
