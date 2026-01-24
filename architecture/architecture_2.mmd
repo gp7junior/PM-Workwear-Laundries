@@ -1,0 +1,29 @@
+---
+config:
+      theme: redux
+---
+flowchart
+    classDef process fill:#e1bee7,stroke:#4a148c,stroke-width:2px,color:#000;
+    classDef storage fill:#dbf0f9,stroke:#01579b,stroke-width:2px,color:#000;
+    classDef serving fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px,color:#000;
+    subgraph MainMedallion [Data Sources - Medallion]
+        IoT["Lundry Machines IoT Agg."]
+        MTL["Maintenance <br> Logs"]
+    end
+    
+    %% --- Training Pipeline ---
+    subgraph Training [ML Training Pipeline]
+        Orchestrator[Airflow Orchestrator]:::process --> MLF[*ML* <br> *Pipeline...* + Model Registry]
+    end
+
+    %% --- Inference & Deployment ---
+    subgraph Deployment [Production Inference]
+        IoT -- Current Sensor Reading --> API[Model Serving API K8s/Docker]:::serving
+        API -- 1. Low Latency Lookup --> OnlineStore
+        MLF -- 2. Load Champion Model --> API
+        API -- 3. Predict Failure Prob --> Dashboard[Alerting Dashboard]:::source
+    end
+
+    %% --- Monitoring Loop ---
+    API -- Inference Data --> DriftMon[Drift Detection & Monitoring]:::process
+    DriftMon --> TrP[Performance Drop <br> Data Drift Detected] --> Orchestrator

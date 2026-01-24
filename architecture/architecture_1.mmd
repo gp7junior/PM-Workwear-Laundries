@@ -1,0 +1,40 @@
+---
+config:
+      theme: redux
+---
+flowchart TD
+    classDef process fill:#e1bee7,stroke:#4a148c,stroke-width:2px,color:#000;
+    classDef storage fill:#dbf0f9,stroke:#01579b,stroke-width:2px,color:#000;
+    subgraph MainMedallion [Data Sources - Medallion]
+        direction TB
+        IoT["Lundry Machines IoT Agg."]
+        MTL["Maintenance <br> Logs"]
+        IoT -- Streaming Telemetry --> Kafka{{Kafka <br> Event Hubs}}:::process
+        Kafka -- Raw Ingestion --> Bronze[(Bronze Layer <br> Data Lake)]:::storage
+        Bronze -- Clean & Validate --> Silver[(Silver Layer <br> Data Lake)]:::storage
+        MTL -- Batch ETL --> Silver:::storage
+        Silver -- Join & Aggregate --> Gold[(Gold Layer <br> Aggregated)]:::storage
+        end
+    
+    %% --- Feature Engineering & Store ---
+    subgraph FeatureStore [Feature Store eg. Feast]
+        style FeatureStore fill:#f0f4c3,stroke:#827717
+        %% FRegistry{{Feature Registry <br> Definitions}}
+        
+        %% Offline Path
+        Gold -- Scheduled Batch Job --> BatchProc[Spark Batch <br> Processor]:::process
+        BatchProc -- Write Historical Features --> OfflineStore[(Offline Store <br> BigQuery/S3)]:::storage
+        
+        %% Online Path
+        Kafka -- Real time Event --> StreamProc[Flink Stream Processor]:::process
+        StreamProc -- Update Rolling Windows --> OnlineStore[(Online Store <br> Redis/DynamoDB)]:::storage
+        OfflineStore -- Periodic Sync --> OnlineStore
+    end
+
+    %% --- Training Pipeline ---
+    subgraph Training [ML Training Pipeline]
+        Orchestrator[Airflow Orchestrator]:::process --> TriggerTrain((Trigger))
+        TriggerTrain -- 1. Request Data --> OfflineStore
+        OfflineStore -- 2. Point in Time Join --> TrainModel[Model Training <br> XGBoost]:::process
+        TrainModel -- 3. Register Champion --> ModelReg{{MLflow Model <br> Registry}}
+    end
