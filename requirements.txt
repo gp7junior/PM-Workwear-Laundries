@@ -7,3 +7,6 @@ streamlit
 joblib
 plotly
 numpy
+optuna
+matplotlib
+xgboost

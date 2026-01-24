@@ -57,3 +57,23 @@ weighted avg       0.55      0.57      0.56     28863
 ROC AUC: 0.4504
 ```
 
+After running `tune_xgboost.py` sometimes:
+
+```
+bash
+========================================
+BEST PARAMETERS FOUND
+========================================
+{'n_estimators': 208, 'max_depth': 3, 'learning_rate': 0.01011353756778281, 'subsample': 0.9352108672641073, 'colsample_bytree': 0.6903180907353763, 'min_child_weight': 5, 'scale_pos_weight': 6.468750830737779}
+Best Validation Recall: 0.9353
+
+Retraining Final Champion Model on full training data...
+
+========================================
+FINAL TEST SET RESULTS
+========================================
+Recall:    0.9889
+Precision: 0.3091
+ROC AUC:   0.4957
+Best parameters saved to data/results/best_params.json
+```
