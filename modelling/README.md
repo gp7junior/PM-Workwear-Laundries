@@ -46,19 +46,19 @@ The following table compares our linear baseline against the optimized Gradient 
 ## 2. Business Context & Justification
 In the workwear laundry industry, the cost of machine failure is asymmetrical.
 
-Cost of a False Negative (Missed Failure): Catastrophic. Results in unplanned downtime, broken SLAs, emergency repair costs, and potential workwear backlog.
+- Cost of a False Negative (Missed Failure): Catastrophic. Results in unplanned downtime, broken SLAs, emergency repair costs, and potential workwear backlog.
 
-Cost of a False Positive (False Alarm): Low. Results in a technician performing a 15-minute inspection on a healthy machine.
+- Cost of a False Positive (False Alarm): Low. Results in a technician performing a 15-minute inspection on a healthy machine.
 
-Why XGBoost is Selected for Production
+**Why XGBoost is Selected for Production?**
 
 Despite the lower overall accuracy, the Tuned XGBoost model is the superior choice for production deployment for the following reasons:
 
-Maximum Risk Mitigation: A 99% Recall ensures that nearly every failing component is flagged before a breakdown occurs. The Baseline model misses 63% of failures, which is unacceptable for a critical operation.
+**Maximum Risk Mitigation:** A 99% Recall ensures that nearly every failing component is flagged before a breakdown occurs. The Baseline model misses 63% of failures, which is unacceptable for a critical operation.
 
-Superior Identification of Complex Patterns: The XGBoost model successfully utilized rolling features (vibration and power strain) to identify failures that a linear model (Logistic Regression) could not separate.
+**Superior Identification of Complex Patterns:** The XGBoost model successfully utilized rolling features (vibration and power strain) to identify failures that a linear model (Logistic Regression) could not separate.
 
-Operational Strategy: While the model is "aggressive" (high False Positive rate), it acts as a highly effective safety net. The business can now move from Reactive Maintenance to a Predictive Inspection workflow.
+**Operational Strategy**: While the model is "aggressive" (high False Positive rate), it acts as a highly effective safety net. The business can now move from Reactive Maintenance to a Predictive Inspection workflow.
 
 ## 3. Final Recommendation
 Deploy the Tuned XGBoost Model. To optimize the operational load on technicians, we recommend a phased rollout where the probability threshold is monitored. However, given the primary directive to avoid downtime, the current configuration provides the highest level of protection for the facility's uptime.
