@@ -39,13 +39,12 @@ It pulls historical data from the Offline Store to train the XGBoost model.
 
 - The final "Champion" model is saved to the Model Registry (MLflow), versioned and ready for deployment.
 
-### 5. Deployment & Inference (Second Graph)
-
 ![Arch1](architecture_2.svg "Architecture Part 2")
 
+### 5. Deployment & Inference (Second Graph)
 Model Serving API (Kubernetes/Docker): This is the live production endpoint.
 
-The Workflow:
+**The Workflow:**
 
 1. A machine sends its current temperature reading to the API.
 2. The API instantly queries the Online Store (Redis) for the machine's 7-day historical context.
