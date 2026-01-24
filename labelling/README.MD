@@ -30,6 +30,7 @@ To ensure the ML model remains valid for real-world production:
 ## Output
 The final labeled dataset is saved to `data/labelled/telemetry_labeled.csv`. This file includes all original sensor features plus the `is_failing_next_7_days` column, ready for Feature Engineering.
 
+```bash
 ========================================
 TARGET VARIABLE DISTRIBUTION
 ========================================
@@ -37,3 +38,4 @@ Total Rows:     527,026
 Healthy (0):    479,446 (90.97%)
 Failing (1):    47,580 (9.03%)
 ========================================
+```
