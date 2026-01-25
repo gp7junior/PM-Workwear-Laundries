@@ -94,8 +94,18 @@ def engineer_features():
 if __name__ == "__main__":
     feature_df = engineer_features()
     
-    output_path = os.path.join(OUTPUT_DIR, 'final_features.csv')
-    feature_df.to_csv(output_path, index=False)
+    # --- FINAL CLEANUP FOR FEATURE STORE ---
+    # Ensure timestamp is actually a datetime object
+    feature_df['timestamp'] = pd.to_datetime(feature_df['timestamp'])
     
+    # Save as Parquet for the Feature Store (Offline Path)
+    output_path_parquet = os.path.join(OUTPUT_DIR, 'final_features.parquet')
+    feature_df.to_parquet(output_path_parquet, index=False)
+    
+    # Keep the CSV for your own manual checks if you like
+    output_path_csv = os.path.join(OUTPUT_DIR, 'final_features.csv')
+    feature_df.to_csv(output_path_csv, index=False)
+
     print(f"Feature engineering complete. Shape: {feature_df.shape}")
-    print(f"Saved to: {output_path}")
+    print(f"Saved to: {output_path_parquet} and {output_path_csv}")
+    print(feature_df.columns.tolist())
