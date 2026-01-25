@@ -1,6 +1,8 @@
 from feast import FeatureStore
 import pprint
 
+# Online Path testing script
+
 # 1. Connect to the store
 store = FeatureStore(repo_path=".")
 

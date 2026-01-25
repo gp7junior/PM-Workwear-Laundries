@@ -1,6 +1,6 @@
-# Solution Architecture for PM Workwear Laundries
+# Solution Architecture: PM Workwear Laundries
 
-The following sections describes a concept to the proposed ML Solution to predict when a laundry machine is most likely to break, providing an on time alert indicating the necessity of maintenance and avoiding the high costs of a machine change. 
+This document outlines the end-to-end MLOps architecture for predicting laundry machine failures. The solution is designed to maximize Recall (99%), ensuring that high-cost machine downtime is minimized through a "Dual-Loop" predictive system.
 
 ```mermaid
 ---
@@ -13,7 +13,7 @@ flowchart TD
     subgraph MainMedallion [Data Sources - Medallion]
         style MainMedallion fill: #419ccd,stroke:#827717 
         direction TB
-        IoT["Lundry Machines IoT Agg."]
+        IoT["Laundry Machines IoT Agg."]
         MTL["Maintenance <br> Logs"]
         IoT -- Streaming Telemetry --> Kafka{{Kafka <br> Event Hubs}}:::process
         Kafka -- Raw Ingestion --> Bronze[(Bronze Layer <br> Data Lake)]:::storage
@@ -47,53 +47,68 @@ flowchart TD
     end
 ```
 
-<!-- ![Arch1](architecture_1.svg "Architecture Part 1") -->
+## 1. Data Foundations & The Medallion Flow
+To maintain high data quality for our XGBoost model, we utilize a Medallion Architecture. This ensures that raw sensor "noise" is filtered before reaching the Feature Store.
 
-## Diagram Explanation
-
-### 1.1 Data Sources & Ingestion
-
-- Laundry Machines (IoT) Agg.: The source of truth. Streams raw sensor data (temperature, vibration) constantly.
-
-- Kafka Event Hub: The central nervous system buffering high-velocity streaming data.
-
-### 1.2 The Data Lake "Medallion" Flow (Blue Subgraph)
-
-- Bronze: Raw, immutable data dumped straight from Kafka.
-
-- Silver: Cleaned data. Physics constraints applied (e.g., temp clipped at 100°C). Maintenance logs are joined here.
-
-- Gold: Highly aggregated data ready for machine learning (e.g., pre-calculated daily summaries).
-
-### 2. The Feature Store (Green Subgraph)
-
-This is the critical bridge that solves the "training-serving skew" problem.
-
-**The Offline Path:**
-
-- Uses Batch Processors (Spark) to calculate heavy historical features from the Gold Layer. Stores them in the Offline Store (S3/BigQuery).
-
-- Crucial Function: Performs Point-in-Time Joins for training, ensuring the model only sees data that existed before a failure occurred (preventing leakage).
-
-** The Online Path:**
-
-- Uses Stream Processors (Flink) to calculate rolling windows (e.g., "Max Vibration Last 7 Days") in near real-time straight from Kafka.
-
-- Updates the Online Store (Redis) immediately. This store is optimized for sub-millisecond retrieval, not massive storage.
-
-### 3. ML Training Pipeline (Gray Subgraph)
-
-- Orchestrator (Airflow): manages the schedule.
-It pulls historical data from the Offline Store to train the XGBoost model.
-
-- The final "Champion" model is saved to the Model Registry (MLflow), versioned and ready for deployment.
-
-### 5. Deployment & Inference
-
-This image describes the live production architecture and how it triggers the creation of new models.
-
-<!-- ![Arch1](architecture_2.svg "Architecture Part 2") -->
 ```mermaid
+graph LR
+    %% Class Definitions
+    classDef ingestion fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef storage fill:#dbf0f9,stroke:#01579b,stroke-width:2px;
+    classDef compute fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
+
+    %% Ingestion Source
+    Source1[IoT Sensors]:::ingestion
+    Source2[Maintenance Logs]:::ingestion
+
+    %% Bronze Layer
+    subgraph DataLake [Data Lake]
+        direction LR
+        Bronze[(Bronze Layer: <br/> Raw Files)]:::storage
+        Silver[(Silver Layer: <br/> Validated Data)]:::storage
+        Gold[(Gold Layer: <br/> Feature Ready)]:::storage
+    end
+
+    %% Process Flow
+    Source1 -->|Raw Stream| Bronze
+    Source2 -->|Batch ETL| Bronze
+
+    Bronze -->|Task 1: Cleaning & <br/> Physics Clipping| Silver
+    Silver -->|Task 2 & 3: Joins & <br/> Rolling Aggregates| Gold
+
+    %% Output to Offline Store
+    Gold -->|Managed by Feast| OfflineStore[Offline Feature Store]:::compute
+
+    style DataLake fill:#f4f4f4,stroke:#333,stroke-dasharray: 5 5
+```
+**Bronze (Ingestion):** Captures raw, immutable telemetry from Kafka.
+
+**Silver (Validation):** Applies physics-based constraints (e.g., temperature clipping) and deduplication. Maintenance logs are integrated here to provide historical context.
+
+**Gold (Aggregated):** Features are finalized for ML consumption, including pre-calculated health indicators and cumulative runtime stats.
+
+## 2. The Feature Store (Feast Implementation)
+
+The Feature Store acts as the "Single Source of Truth," eliminating the risk of Training-Serving Skew by using identical logic for both historical and live data.
+
+| Feature        | Offline Path (Training)          | Online Path (Inference)         |
+|----------------|----------------------------------|---------------------------------|
+| Logic Source   | Gold Layer (S3/Parquet)          | Kafka / Streaming Telemetry     |
+| Processing     | Spark Batch / Pandas             | Flink or Spark Streaming        |
+| Feast Role     | Point-in-Time Joins (Historical) | Low-Latency Serving (Real-time) |
+| Storage Medium | Offline Store (Data Lake)        | Online Store                    |
+| Technology	 | S3 / Parquet / BigQuery	        | Redis / SQLite / DynamoDB       |
+
+# 3. Training & Model Registry
+**Orchestration:** Managed by Apache Airflow, which schedules retraining based on time intervals or "Drift" triggers.
+
+**Registry:** The MLflow Model Registry manages versioning. Every model is tagged as either a *"Challenger"* (under evaluation) or *"Champion"* (production-active).
+
+# 4. Deployment & Real-Time Inference
+This phase describes how the live production environment interacts with the Feature Store to generate actionable alerts.
+
+```mermaid
+
 ---
 config:
       theme: redux
@@ -104,7 +119,7 @@ flowchart
     classDef serving fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px,color:#000;
 
     %% --- Data Sources ---
-        IoT["Lundry Machines IoT Agg."]
+        IoT["Laundry Machines IoT Agg."]
 
     %% --- Training Pipeline ---
     subgraph Training [ML Training Pipeline]
@@ -143,25 +158,52 @@ flowchart
     linkStyle 7 stroke-width:2px,fill:none,stroke:red;
     linkStyle 8 stroke-width:2px,fill:none,stroke:red;
     linkStyle 9 stroke-width:2px,fill:none,stroke:red;
+
 ```
 
-**Prediction Workflow:** (blue arrows)
+## 4.1 Prediction Workflow (Blue Path)
 
-0. A machine sends its **current sensor reading** to the API. 
-1. The API instantly **queries** the Online Store (Redis) for the machine's 7-day historical context.
-2. Combining **current** and **historical** data, passes it to the loaded XGBoost model, and generates a **prediction**. 
-3.
-    ``` 
-    If prediction > the threshold:
-        send an alert to the Dashboard.
-    ```
+**Request:** Machine sends a payload (e.g., Temperature, Current Vibration).
 
-**The Monitoring Loop** (red arrows)
+**Enrichment:** API queries the Online Store (Redis/SQLite) for the 7-day historical features (e.g., *vibration_rolling_max_7d*).
 
-4. Drift Detection: The API sends **input data** and **predictions** to a monitoring system. 
-5. If the incoming data starts looking different from the training data (Data Drift), or if Recall drops (Concept Drift), it signals the Orchestrator to trigger a re-training cycle.
-    ```
-    If data_drift or recall drops:
-       trigger a re-training cycle
-    ``` 
-6. The new Model is then registered on the Model Register (ML Enginee)
+**Inference:** Data is passed to the XGBoost Engine.
+
+```
+IF Prediction Probability > 0.45 THEN 
+    Dispatch Maintenance Alert to Dashboard.
+```
+
+## 4.2 Monitoring & Retraining (Red Path)
+
+**Drift Detection:** Input features are monitored. If the average vibration of the fleet shifts >2σ, the system flags Data Drift.
+
+```
+IF Data Drift detected OR Recall < 85% THEN 
+    Signal Airflow to launch a new Training Job.
+```
+
+**Registry Sync:** The new model is registered and promoted to the ML Engine.
+
+# 5. Operational Maintenance
+## 5.1 CI/CD & Shadow Deployment
+
+New models are deployed in Shadow Mode first. They process live data without sending alerts to technicians. We only promote a *"Challenger"* to *"Champion"* once it proves it maintains 99% Recall on real-world distributions.
+
+## 5.2 The Feedback Loop
+
+Technician findings (e.g., "Actual Part Failure" vs "False Alarm") are logged in the maintenance app. This data is piped back into the Gold Layer, creating a "Ground Truth" label for the next month's training cycle, ensuring the model evolves with the hardware.
+
+## Tech Stack Summary
+
+| Component      | Tool / Technology    | Role in Your Project                          |
+|----------------|----------------------|-----------------------------------------------|
+| Ingestion      | Kafka / Event Hubs   | Sensor data streaming.          |
+| Processing     | Spark / Pandas       | **Task 1** & **3** cleaning and rolling features.     |
+| Data Lake      | Delta Lake / Parquet | Medallion storage (Bronze/Silver/Gold).       |
+| Feature Store  | Feast                | The registry and manager for feature logic.   |
+| Offline Store  | S3 / Parquet         | Historical data for Point-in-Time joins.      |
+| Online Store   | Redis / SQLite       | Low-latency storage for the Inference API.    |
+| Model Registry | MLflow               | Versioning the XGBoost "Champion" models.    |
+| Orchestration  | Apache Airflow       | Triggering **Task 2** labels and **Task 6** training. |
+| Deployment     | FastAPI / Docker     | Serving the model as a microservice.          |
