@@ -1,5 +1,21 @@
 # PM-Workwear-Laundries
 
+**Table of Contents:**
+- [PM-Workwear-Laundries](#pm-workwear-laundries)
+  - [The Objective](#the-objective)
+  - [Data Description (Hypothetical)](#data-description-hypothetical)
+- [Solution Guide](#solution-guide)
+  - [Running the Code](#running-the-code)
+  - [Task 1: Data Loading and Initial Cleanup](#task-1-data-loading-and-initial-cleanup)
+  - [Task 2: Defining the Target Variable (Labeling)](#task-2-defining-the-target-variable-labeling)
+  - [Task 3: Feature Construction](#task-3-feature-construction)
+  - [Task 4: Data Imbalance and Splitting](#task-4-data-imbalance-and-splitting)
+  - [Task 5: Model Implementation \& Training](#task-5-model-implementation--training)
+  - [Task 6: Hyperparameter Tuning](#task-6-hyperparameter-tuning)
+  - [Task 7: Evaluation Metric \& Reporting](#task-7-evaluation-metric--reporting)
+  - [Task 8: Feature Store Design (Detailed)](#task-8-feature-store-design-detailed)
+  - [Task 9: Production MLOps Workflow Document](#task-9-production-mlops-workflow-document)
+
 ## The Objective
 
 The core of this solution is a Predictive Maintenance (PdM) engine. By leveraging sensor data from a large fleet of advanced washing machines and drying equipment, we have built a machine learning pipeline designed to:
@@ -44,14 +60,14 @@ To run the predictive maintenance engine, follow these steps:
 
 Implement the necessary code (Python/Pandas/Spark) to load all four datasets. Implement basic error handling for outliers (e.g., temperatures outside 0°C to 100°C) by setting them to the median, and ensure all timestamp columns are correctly formatted. Output: Cleaned DataFrames and schema documentation. 
 
-### Solution
+**Solution**
 
-The main steps regarding the Data Loading and Cleaning are inside the <<data_cleaning>> folder. 
+The steps regarding the Data Loading and Cleaning are inside the `data_cleaning` folder. 
 
 how to run
 
 ```bash
-PM-Workwear-Laundries % python3 data_cleaning/clean_data.py \
+python3 data_cleaning/clean_data.py \
   --input data/raw/telemetry_data_full.csv \ 
   --output data/cleaned/telemetry_data_full.csv \              
   --timestamp-col timestamp \
@@ -73,9 +89,9 @@ Implement the logic to create the binary target variable (is_failing_next_7_days
 - Crucially, ensure no look-ahead leakage. 
 - Output: The labeling function/code and a descriptive statistic of the resulting target variable imbalance (e.g., percentage of positive labels). 
 
-### Solution
+**Solution**
 
-to run 
+Please find the code for this solution inside the `labelling` folder.
 ```bash
 python3 labelling/pipeline_labeling.py
 ```
@@ -84,11 +100,11 @@ python3 labelling/pipeline_labeling.py
 
 Implement code to calculate at least eight (8) high-quality features. These must combine data from Telemetry and Metadata: 
  
-1. Five (5) rolling window statistics (e.g., mean, max, standard deviation) over a 7-day window for continuous sensor variables (Vibration, Temperature, Pressure). 
+1. **Five (5) rolling window statistics** (e.g., mean, max, standard deviation) over a 7-day window for continuous sensor variables (Vibration, Temperature, Pressure). 
  
-2. Three (3) binary, categorical, or time-based features (e.g., Time since last major maintenance, Machine age bin, One-Hot Encoding of location). 
+2. **Three (3) binary, categorical**, or **time-based** features (e.g., Time since last major maintenance, Machine age bin, One-Hot Encoding of location). 
 
-### Solution
+**Solution**:
 Folder `feature_construction`
 ```bash
 python3 feature_construction/feature_engineering.py
@@ -98,7 +114,7 @@ python3 feature_construction/feature_engineering.py
 Implement a strategy to handle the imbalanced nature of the labeled dataset (e.g., using class weights in the model, or implementing a mild over/undersampling technique). Clearly define and implement a time-based train/test split (e.g., using the first 80% of time for training and the last 20% for testing) to rigorously prevent time-series leakage. 
 2. Model Development, Optimization, & Evaluation  
 
-### Solution
+**Solution**:
 Files `labelling/pipeline_labelling.py` and `modelling/data_splitting.py`
 ```bash
 python3 labelling/pipeline_labelling.py
@@ -109,7 +125,7 @@ Output is saved on `data/labelled` and `data/modelling`
 ## Task 5: Model Implementation & Training 
 Implement and train two contrasting machine learning models: a Gradient Boosting Classifier (XGBoost/LightGBM) and a simple Logistic Regression. Use the processed data from Section 1. 
 
-### Solution
+**Solution**
 Files `modelling/train_models.py`
 ```bash
 python3 modelling/train_models.py`
@@ -119,7 +135,7 @@ Output is saved on `data/results/model_comparison.txt`
 ## Task 6: Hyperparameter Tuning 
 Perform basic hyperparameter tuning (e.g., a small Randomized Search or Bayesian Optimization) on the Gradient Boosting model to optimize performance specifically for the Recall metric.
 
-### Solution
+**Solution**
 Files `modelling/tune_xgboost.py`
 ```bash
 python3 modelling/tune_xgboost.py`
@@ -131,7 +147,7 @@ Output is saved on `data/results/best_params.json`
 Prioritize the Recall metric due to the high cost of False Negatives. Output: Provide the final classification report (including Precision, Recall, F1-Score, and AUC) for both models on the held-out test set. Justify which model is best suited for production deployment based on the achieved metrics and the business context (high False Negative cost). 
 3. Solution Architecture & MLOps  
 
-### Solution
+**Solution**
 Files `modelling/final_evaluation.py`
 ```bash
 python3 modelling/final_evaluation.py`
@@ -141,9 +157,6 @@ Output is showed on terminal, best paramenters are saved on `data/results/best_p
 ## Task 8: Feature Store Design (Detailed)
 Design the full conceptual workflow for the Feature Store (e.g., using Feast or a cloud-native store like SageMaker/Databricks). Detail how features are computed for offline training (historical data) and how they are retrieved for online inference (real-time prediction) using distinct data paths. 
 
-
-For more details on the architecture and data flow, refer to the architecture documentation in the `architecture/` folder.
-
 ## Task 9: Production MLOps Workflow Document 
 Create a detailed written plan (document format) outlining the end-to-end MLOps workflow for continuous deployment and retraining. Include: 
  
@@ -151,6 +164,8 @@ Create a detailed written plan (document format) outlining the end-to-end MLOps 
 2. Feature Pipeline: Scheduled feature calculation and population of the Feature Store. 
 3. Training Pipeline: Triggering model retraining based on data drift or performance drop. 
 4. Deployment: How the champion model is containerized and exposed as a low-latency API endpoint.
+
+**Solution Tasks 8 & 9**
 
 For more details on the architecture and data flow, refer to the architecture documentation in the `architecture/` folder.
 
