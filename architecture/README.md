@@ -8,8 +8,8 @@ config:
       theme: redux
 ---
 flowchart TD
-    classDef process fill:#e1bee7,stroke:#4a148c,stroke-width:2px,color:#000;
-    classDef storage fill:#dbf0f9,stroke:#01579b,stroke-width:2px,color:#000;
+    classDef process fill: #e1bee7,stroke:#4a148c,stroke-width:2px,color:#000;
+    classDef storage fill: #dbf0f9,stroke:#01579b,stroke-width:2px,color:#000;
     subgraph MainMedallion [Data Sources - Medallion]
         style MainMedallion fill: #419ccd,stroke:#827717 
         direction TB
@@ -53,9 +53,9 @@ To maintain high data quality for our XGBoost model, we utilize a Medallion Arch
 ```mermaid
 graph LR
     %% Class Definitions
-    classDef ingestion fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef storage fill:#dbf0f9,stroke:#01579b,stroke-width:2px;
-    classDef compute fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
+    classDef ingestion fill: #f9f,stroke:#333,stroke-width:2px;
+    classDef storage fill: #dbf0f9,stroke:#01579b,stroke-width:2px;
+    classDef compute fill: #fff3e0,stroke:#ff6f00,stroke-width:2px;
 
     %% Ingestion Source
     Source1[IoT Sensors]:::ingestion
