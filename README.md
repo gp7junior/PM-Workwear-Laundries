@@ -23,6 +23,23 @@ Use a scalable language (Python/PySpark/Scala) and is provided with the full dat
 
 # Solution Guide
 
+## Running the Code
+
+To run the predictive maintenance engine, follow these steps:
+
+1. **Set Up the Environment**: Ensure you have Python 3.14 or higher installed. You can create a virtual environment using the following command:
+   
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+2. **Install Dependencies**: Navigate to the project directory and install the required packages listed in `requirements.txt`:
+   
+   ```bash
+   pip install -r requirements.txt
+   ```
+
 ## Task 1: Data Loading and Initial Cleanup
 
 Implement the necessary code (Python/Pandas/Spark) to load all four datasets. Implement basic error handling for outliers (e.g., temperatures outside 0°C to 100°C) by setting them to the median, and ensure all timestamp columns are correctly formatted. Output: Cleaned DataFrames and schema documentation. 
@@ -72,70 +89,70 @@ Implement code to calculate at least eight (8) high-quality features. These must
 2. Three (3) binary, categorical, or time-based features (e.g., Time since last major maintenance, Machine age bin, One-Hot Encoding of location). 
 
 ### Solution
-
-```
-bash
+Folder `feature_construction`
+```bash
 python3 feature_construction/feature_engineering.py
 ```
-
 
 ## Task 4: Data Imbalance and Splitting 
 Implement a strategy to handle the imbalanced nature of the labeled dataset (e.g., using class weights in the model, or implementing a mild over/undersampling technique). Clearly define and implement a time-based train/test split (e.g., using the first 80% of time for training and the last 20% for testing) to rigorously prevent time-series leakage. 
 2. Model Development, Optimization, & Evaluation  
 
+### Solution
+Files `labelling/pipeline_labelling.py` and `modelling/data_splitting.py`
+```bash
+python3 labelling/pipeline_labelling.py
+python3 modelling/data_splitting.py
+```
+Output is saved on `data/labelled` and `data/modelling`
 
 ## Task 5: Model Implementation & Training 
 Implement and train two contrasting machine learning models: a Gradient Boosting Classifier (XGBoost/LightGBM) and a simple Logistic Regression. Use the processed data from Section 1. 
 
+### Solution
+Files `modelling/train_models.py`
+```bash
+python3 modelling/train_models.py`
+```
+Output is saved on `data/results/model_comparison.txt`
+
 ## Task 6: Hyperparameter Tuning 
 Perform basic hyperparameter tuning (e.g., a small Randomized Search or Bayesian Optimization) on the Gradient Boosting model to optimize performance specifically for the Recall metric.
+
+### Solution
+Files `modelling/tune_xgboost.py`
+```bash
+python3 modelling/tune_xgboost.py`
+```
+Output is saved on `data/results/best_params.json`
+
 
 ## Task 7: Evaluation Metric & Reporting 
 Prioritize the Recall metric due to the high cost of False Negatives. Output: Provide the final classification report (including Precision, Recall, F1-Score, and AUC) for both models on the held-out test set. Justify which model is best suited for production deployment based on the achieved metrics and the business context (high False Negative cost). 
 3. Solution Architecture & MLOps  
 
+### Solution
+Files `modelling/final_evaluation.py`
+```bash
+python3 modelling/final_evaluation.py`
+```
+Output is showed on terminal, best paramenters are saved on `data/results/best_params.json`
 
 ## Task 8: Feature Store Design (Detailed)
 Design the full conceptual workflow for the Feature Store (e.g., using Feast or a cloud-native store like SageMaker/Databricks). Detail how features are computed for offline training (historical data) and how they are retrieved for online inference (real-time prediction) using distinct data paths. 
+
+
+For more details on the architecture and data flow, refer to the architecture documentation in the `architecture/` folder.
 
 ## Task 9: Production MLOps Workflow Document 
 Create a detailed written plan (document format) outlining the end-to-end MLOps workflow for continuous deployment and retraining. Include: 
  
 1. Data Pipeline: Continuous ingestion (e.g., Kafka/Event Hub) into the Bronze layer. 
- 
 2. Feature Pipeline: Scheduled feature calculation and population of the Feature Store. 
- 
 3. Training Pipeline: Triggering model retraining based on data drift or performance drop. 
- 
-4. Deployment: How the champion model is containerized and exposed as a low-latency API endpoint. 
-
-## Running the Code
-
-To run the predictive maintenance engine, follow these steps:
-
-1. **Set Up the Environment**: Ensure you have Python 3.14 or higher installed. You can create a virtual environment using the following command:
-   
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-2. **Install Dependencies**: Navigate to the project directory and install the required packages listed in `requirements.txt`:
-   
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-
-4. **Run the Model Evaluation**: Finally, execute the model evaluation script to assess the performance of the predictive maintenance model:
-   
-   ```bash
-   python modelling/final_evaluation.py
-   ```
-
-5. **View Results**: Check the results in the `results/` directory for the evaluation metrics and model performance reports.
-
-## Additional Information
+4. Deployment: How the champion model is containerized and exposed as a low-latency API endpoint.
 
 For more details on the architecture and data flow, refer to the architecture documentation in the `architecture/` folder.
+
+
 
