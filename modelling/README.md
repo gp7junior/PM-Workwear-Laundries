@@ -11,8 +11,6 @@ We strictly enforce that the model is trained only on *past* data and evaluated 
 * **Split Point:** The first **80%** of the timeline is designated for **Training**. The remaining **20%** is held out for **Testing**.
 * **Why:** Random shuffling (e.g., `train_test_split(shuffle=True)`) would mix future observations into the training set, allowing the model to "cheat" by memorizing future failure patterns, leading to unrealistically high performance that fails in production.
 
-
-
 ## 2. Handling Class Imbalance
 Industrial failure data is inherently imbalanced (e.g., 98% healthy vs. 2% failure). To address this without generating synthetic data (which can introduce noise in time-series), we use **Cost-Sensitive Learning**.
 
