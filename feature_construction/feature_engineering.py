@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import os
+from rich.console import Console
+from rich.table import Table
 
 # --- CONFIGURATION ---
 LABELED_DATA_PATH = 'data/labelled/telemetry_labeled.csv'
@@ -91,6 +93,23 @@ def engineer_features():
     
     return df
 
+
+def print_feature_summary(df):
+    console = Console()
+    table = Table(title="[bold blue]Feature Engineering Output[/bold blue]", show_header=True, header_style="bold magenta")
+    
+    table.add_column("Index", style="dim", width=6)
+    table.add_column("Feature Name", style="cyan")
+    table.add_column("Dtype", style="green")
+
+    for i, col in enumerate(df.columns):
+        table.add_row(str(i), col, str(df[col].dtype))
+
+    console.print(table)
+    console.print(f"[bold green]Total Features:[/bold green] {len(df.columns)}")
+
+# Call it like this:
+
 if __name__ == "__main__":
     feature_df = engineer_features()
     
@@ -108,4 +127,4 @@ if __name__ == "__main__":
 
     print(f"Feature engineering complete. Shape: {feature_df.shape}")
     print(f"Saved to: {output_path_parquet} and {output_path_csv}")
-    print(feature_df.columns.tolist())
+    print_feature_summary(feature_df)
