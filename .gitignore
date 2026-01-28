@@ -208,3 +208,4 @@ __marimo__/
 
 # Ignore large data directories
 data/
+.DS_Store

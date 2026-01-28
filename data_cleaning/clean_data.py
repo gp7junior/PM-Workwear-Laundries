@@ -1,13 +1,15 @@
 """Data cleaning utility
 
 Features:
-- Remove outliers (IQR or z-score) from numeric columns (drop or mark as NaN).
+- Remove outliers (fixed numeric range) from numeric columns.
+- Outlier actions: drop rows, mark as NaN, or replace with median.
 - Uniform timestamps: parse timestamp column, set as index, resample to fixed frequency and aggregate/interpolate.
 - CLI for easy use.
 
-Usage example:
-python PM-Workwear-Laundries/data_cleaning/clean_data.py --input PM-Workwear-Laundries/data/raw/telemetry_data_full.csv --output cleaned.csv \
-    --timestamp-col timestamp --freq 1min --outlier-method iqr --outlier-action mark --interpolate
+Usage example (Task 1 compliance):
+python clean_data.py --input raw/telemetry.csv --output cleaned/telemetry.csv \
+    --timestamp-col timestamp --freq 1h \
+    --min-val 0 --max-val 100 --outlier-action median --interpolate
 """
 from __future__ import annotations
 
@@ -31,44 +33,38 @@ def numeric_columns(df: pd.DataFrame) -> list[str]:
     return df.select_dtypes(include=[np.number]).columns.tolist()
 
 
-def remove_outliers_iqr(df: pd.DataFrame, cols: Iterable[str], k: float = 1.5, action: str = "mark") -> pd.DataFrame:
+def remove_outliers_fixed_range(
+    df: pd.DataFrame, 
+    cols: Iterable[str], 
+    min_val: float = 0.0, 
+    max_val: float = 100.0, 
+    action: str = "mark"
+) -> pd.DataFrame:
+    """
+    Removes or replaces values outside a fixed specific range [min_val, max_val].
+    Used for physical constraints like temperature (0-100).
+    """
     result = df.copy()
     for c in cols:
-        q1 = result[c].quantile(0.25)
-        q3 = result[c].quantile(0.75)
-        iqr = q3 - q1
-        low = q1 - k * iqr
-        high = q3 + k * iqr
-        mask = (result[c] < low) | (result[c] > high)
-        if action == "drop":
-            result = result.loc[~mask]
-        elif action == "median":
-            med = result[c].median()
-            result.loc[mask, c] = med
-        else:
-            result.loc[mask, c] = np.nan
-    return result
-
-
-def remove_outliers_zscore(df: pd.DataFrame, cols: Iterable[str], threshold: float = 3.0, action: str = "mark") -> pd.DataFrame:
-    result = df.copy()
-    for c in cols:
-        col = result[c]
-        mean = col.mean()
-        std = col.std()
-        if std == 0 or pd.isna(std):
+        mask = (result[c] < min_val) | (result[c] > max_val)
+        
+        if not mask.any():
             continue
-        z = (col - mean) / std
-        mask = z.abs() > threshold
+
         if action == "drop":
             result = result.loc[~mask]
         elif action == "median":
-            med = result[c].median()
-            result.loc[mask, c] = med
+            # Calculate median from VALID data only
+            valid_data = result.loc[~mask, c]
+            if not valid_data.empty:
+                med = valid_data.median()
+                result.loc[mask, c] = med
+            else:
+                # If all data is outlier, just set to NaN to be safe
+                result.loc[mask, c] = np.nan
         else:
             result.loc[mask, c] = np.nan
     return result
-
 
 def uniform_timestamps(
     df: pd.DataFrame,
@@ -122,10 +118,9 @@ def clean(
     output_path: str,
     timestamp_col: str = "timestamp",
     freq: str | None = "1min",
-    outlier_method: str = "iqr",
-    outlier_action: str = "mark",
-    iqr_k: float = 1.5,
-    z_thresh: float = 3.0,
+    outlier_action: str = "median",
+    min_val: float = 0.0,
+    max_val: float = 100.0,
     interpolate: bool = True,
     agg_method: str = "mean",
 ):
@@ -133,14 +128,18 @@ def clean(
 
     num_cols = numeric_columns(df)
 
-    if outlier_method == "iqr":
-        df = remove_outliers_iqr(df, num_cols, k=iqr_k, action=outlier_action)
-    elif outlier_method == "zscore":
-        df = remove_outliers_zscore(df, num_cols, threshold=z_thresh, action=outlier_action)
+    # Always apply fixed range cleaning as requested
+    df = remove_outliers_fixed_range(df, num_cols, min_val=min_val, max_val=max_val, action=outlier_action)
 
-    # If timestamp column exists and user wants resampling, resample. Otherwise skip resample
+    # If timestamp column exists and user wants resampling, resample
     if freq and timestamp_col in df.columns:
-        df = uniform_timestamps(df, timestamp_col=timestamp_col, freq=freq, numeric_interp=("linear" if interpolate else "nearest"), agg_method=agg_method)
+        df = uniform_timestamps(
+            df, 
+            timestamp_col=timestamp_col, 
+            freq=freq, 
+            numeric_interp=("linear" if interpolate else "nearest"), 
+            agg_method=agg_method
+        )
     else:
         if freq and timestamp_col not in df.columns:
             print(f"[info] timestamp column '{timestamp_col}' not found in {input_path}; skipping resample")
@@ -153,19 +152,23 @@ def clean(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Clean time series CSV: remove outliers and uniform timestamps")
+    p = argparse.ArgumentParser(description="Clean time series CSV: remove outliers (fixed range) and uniform timestamps")
     p.add_argument("--input", required=False, help="Input CSV path (use together with --output for single file)")
     p.add_argument("--input-dir", required=False, help="Input directory to process all CSV files inside")
     p.add_argument("--output", required=False, help="Output CSV path for single input")
     p.add_argument("--output-dir", required=False, help="Output directory for processed files when using --input-dir")
     p.add_argument("--timestamp-col", default="timestamp", help="Name of timestamp column")
-    p.add_argument("--freq", default="1min", help="Resample frequency (pandas offset alias). Use empty string to skip resample. Examples: '1min', '1S', 'H'.")
-    p.add_argument("--outlier-method", choices=["iqr", "zscore", "none"], default="iqr")
-    p.add_argument("--outlier-action", choices=["mark", "drop", "median"], default="mark", help="Mark outliers as NaN, drop rows, or replace with median")
-    p.add_argument("--iqr-k", type=float, default=1.5)
-    p.add_argument("--z-thresh", type=float, default=3.0)
-    p.add_argument("--no-interpolate", dest="interpolate", action="store_false")
-    p.add_argument("--agg-method", default="mean", help="Aggregation for resample of numeric columns (mean, median, etc.)")
+    p.add_argument("--freq", default="1min", help="Resample frequency. Use empty string to skip. Ex: '1min', '1h'.")
+    
+    # Updated outlier arguments - Removed IQR/Zscore specific args
+    p.add_argument("--outlier-action", choices=["drop", "median"], default="median", help="Action: drop=remove rows, median=replace with median")
+    
+    # Specific parameters for Fixed Range
+    p.add_argument("--min-val", type=float, default=0.0, help="Min value for fixed_range method")
+    p.add_argument("--max-val", type=float, default=100.0, help="Max value for fixed_range method")
+    
+    p.add_argument("--no-interpolate", dest="interpolate", action="store_false", help="Disable interpolation")
+    p.add_argument("--agg-method", default="mean", help="Aggregation method for numeric cols (mean, median)")
     return p
 
 
@@ -173,8 +176,7 @@ def main() -> None:
     p = build_parser()
     args = p.parse_args()
     freq = args.freq if args.freq not in (None, "", "None") else None
-    outlier_method = args.outlier_method if args.outlier_method != "none" else ""
-
+    
     # Determine files to process
     files = []
     if args.input_dir:
@@ -201,15 +203,17 @@ def main() -> None:
             else:
                 out_path = os.path.join(os.getcwd(), f"cleaned_{os.path.basename(f)}")
 
+        print(f"Processing {f} -> {out_path}...")
+        
+        # Cleaned up call signature to match the simplified function
         clean(
             input_path=f,
             output_path=out_path,
             timestamp_col=args.timestamp_col,
             freq=freq,
-            outlier_method=(args.outlier_method if args.outlier_method != "none" else ""),
             outlier_action=args.outlier_action,
-            iqr_k=args.iqr_k,
-            z_thresh=args.z_thresh,
+            min_val=args.min_val,
+            max_val=args.max_val,
             interpolate=args.interpolate,
             agg_method=args.agg_method,
         )
