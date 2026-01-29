@@ -87,7 +87,6 @@ def objective(trial, X_train, y_train, X_val, y_val, base_weight):
     y_pred = model.predict(X_val)
     
     # Optimization Metric: Recall (Task 6 Requirement)
-    # Note: If Recall is consistently 0 during tuning, Optuna might struggle.
     return recall_score(y_val, y_pred)
 
 def run_optimization(window_hours=168):
