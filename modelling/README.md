@@ -60,3 +60,19 @@ Despite the lower overall accuracy, the Tuned XGBoost model is the superior choi
 
 ## 3. Final Recommendation
 Deploy the Tuned XGBoost Model. To optimize the operational load on technicians, we recommend a phased rollout where the probability threshold is monitored. However, given the primary directive to avoid downtime, the current configuration provides the highest level of protection for the facility's uptime.
+
+# A Second Study: The 48h Window Analysis
+
+| Metric    | 7-Day Strategy (Baseline)  | 48-Hour Strategy (New)     | The MLE Analysis                                                                                                                                |
+|-----------|----------------------------|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| **ROC AUC**   | 0.52(Random Guess)         | 0.60 - 0.69(Signal Found!) | The Big Win. Improved the "Discriminative Power" by ~15-30%. The 7-day model was guessing; the 48-hour model is actually learning patterns. |
+| **Recall**    | 99%(Artificial)            | 67%(Realistic)             | The 7-day model achieved 99% by flagging everything as a failure (high false alarms). The 48-hour model misses some but is far more discerning. |
+| **Precision** | 30%                        | 10%                        | The Cost. Because the 48h target is so rare (harder to hit), precision dropped. This is the trade-off for a sharper signal.                     |
+| **Winner**    | Logistic Regression (0.54) | Logistic Regression (0.69) | Surprise Insight: Simple linear models work best on this short-term signal. XGBoost might be overfitting.                                       |
+
+
+1. When moving from 7 days to 48 hours, the ROC AUC jumped from 0.52 to 0.69 (on the baseline). This confirms the hypothesis: the failure signals in this equipment are short-term. The 7-day window was drowning the signal in noise."
+
+2. Seing a Recall drop from 99% to 67% might lead to the thinking that the model got worse. It didn't. The 7-day model was like a fire alarm that rings 24/7—it catches every fire, but is useless because nobody trusts it. The 48-hour model captures 2 out of 3 failures with a significantly higher ability to rank risk (AUC), making it a much better foundation for a real alert system."
+
+3. Interestingly, the simpler Logistic Regression (0.69 AUC) beat the complex XGBoost (0.59 AUC) in the 48-hour test. This suggests that the indicators of immediate failure (like temperature spikes) are likely linear and strong. If I were deploying this today, I would actually choose the Logistic Regression model for its interpretability and superior performance on this specific window.

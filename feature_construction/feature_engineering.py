@@ -1,22 +1,32 @@
 import pandas as pd
 import numpy as np
 import os
+import argparse
 from rich.console import Console
 from rich.table import Table
 
 # --- CONFIGURATION ---
-LABELED_DATA_PATH = 'data/labelled/telemetry_labeled.csv'
-MAINTENANCE_LOG_PATH = 'data/cleaned/maintenance_log_full.csv'
-METADATA_PATH = 'data/cleaned/machine_metadata_full.csv'
 OUTPUT_DIR = 'data/features/'
 
-def engineer_features():
-    # 0. Setup
+# We remove the hardcoded LABELED_DATA_PATH constant
+MAINTENANCE_LOG_PATH = 'data/cleaned/maintenance_log_full.csv'
+METADATA_PATH = 'data/cleaned/machine_metadata_full.csv'
+
+def engineer_features(window_hours=168, input_path='data/labelled/telemetry_labeled.csv'):
+    """
+    Generates features based on a specific rolling window size (in hours).
+    Reads from a specific labeled input file.
+    """
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     # 1. Load Datasets
-    print("Loading datasets...")
-    df = pd.read_csv(LABELED_DATA_PATH)
+    print(f"Loading labeled data from: {input_path}...")
+    try:
+        df = pd.read_csv(input_path)
+    except FileNotFoundError:
+        print(f"ERROR: Could not find {input_path}. Did you run the labeling step with the correct --days?")
+        return None, None
+
     maint = pd.read_csv(MAINTENANCE_LOG_PATH)
     meta = pd.read_csv(METADATA_PATH)
     
@@ -30,36 +40,35 @@ def engineer_features():
     # Sort for rolling windows
     df = df.sort_values(['machine_id', 'timestamp'])
 
-    # --- PART 1: ROLLING WINDOW STATISTICS (7-DAY) ---
-    print("Calculating rolling statistics...")
-    # 168 hours / 0.25 (15 min intervals) = 672 rows per window
-    window_size = 672 
+    # --- PART 1: ROLLING WINDOW STATISTICS ---
+    window_str = f'{window_hours}h'
+    suffix = f'_{window_hours}h' 
+
+    print(f"Calculating rolling statistics for window: {window_str}...")
+
+    # Group by machine
+    # 1. Vibration Features
+    df[f'vibration_rolling_mean{suffix}'] = df.groupby('machine_id').rolling(window_str, on='timestamp')['vibration_hz'].mean().reset_index(drop=True)
+    df[f'vibration_rolling_max{suffix}'] = df.groupby('machine_id').rolling(window_str, on='timestamp')['vibration_hz'].max().reset_index(drop=True)
+    df[f'vibration_rolling_std{suffix}'] = df.groupby('machine_id').rolling(window_str, on='timestamp')['vibration_hz'].std().reset_index(drop=True)
+
+    # 2. Temperature Stability
+    df[f'temp_rolling_std{suffix}'] = df.groupby('machine_id').rolling(window_str, on='timestamp')['temperature_c'].std().reset_index(drop=True)
     
-    # Group by machine to ensure windows don't cross between different machines
-    grouper = df.groupby('machine_id')
+    # 3. Pressure Mean
+    df[f'pressure_rolling_mean{suffix}'] = df.groupby('machine_id').rolling(window_str, on='timestamp')['pressure_bar'].mean().reset_index(drop=True)
     
-    # 1 & 2. Vibration Features
-    df['vibration_rolling_mean_7d'] = grouper['vibration_hz'].transform(lambda x: x.rolling(window_size).mean())
-    df['vibration_rolling_max_7d'] = grouper['vibration_hz'].transform(lambda x: x.rolling(window_size).max())
-    
-    # 3. Temperature Stability
-    df['temp_rolling_std_7d'] = grouper['temperature_c'].transform(lambda x: x.rolling(window_size).std())
-    
-    # 4. Pressure Mean
-    df['pressure_rolling_mean_7d'] = grouper['pressure_bar'].transform(lambda x: x.rolling(window_size).mean())
-    
-    # 5. Power Strain
-    df['power_rolling_max_7d'] = grouper['power_kw'].transform(lambda x: x.rolling(window_size).max())
+    # 4. Power Strain
+    df[f'power_rolling_max{suffix}'] = df.groupby('machine_id').rolling(window_str, on='timestamp')['power_kw'].max().reset_index(drop=True)
 
     # --- PART 2: CATEGORICAL & TIME-BASED FEATURES ---
     print("Calculating categorical and time-based features...")
     
-    # CRITICAL: Re-sort globally before merge_asof to prevent "keys must be sorted" error
+    # Re-sort globally
     df = df.sort_values(by=['timestamp', 'machine_id']).reset_index(drop=True)
     maint = maint.sort_values(by=['maintenance_timestamp', 'machine_id']).reset_index(drop=True)
 
-    # 6. Time Since Last Maintenance
-    # We look 'backward' to find the most recent maintenance event
+    # 5. Time Since Last Maintenance
     df = pd.merge_asof(
         df, 
         maint[['machine_id', 'maintenance_timestamp']], 
@@ -70,29 +79,24 @@ def engineer_features():
     )
     
     df['hours_since_maintenance'] = (df['timestamp'] - df['maintenance_timestamp']).dt.total_seconds() / 3600
-    # Fill missing maintenance with a high value (e.g. 10,000 hours) indicating "long time ago"
     df['hours_since_maintenance'] = df['hours_since_maintenance'].fillna(10000) 
 
-    # 7. Machine Age & Location (Metadata Join)
+    # 6. Machine Age & Location
     print("Joining metadata...")
     df = df.merge(meta[['machine_id', 'age_months', 'location']], on='machine_id', how='left')
     
-    # Binning Age
     df['machine_age_group'] = pd.cut(df['age_months'], 
                                     bins=[0, 24, 60, 500], 
                                     labels=['new', 'mid_age', 'legacy'])
 
-    # 8. One-Hot Encoding
-    # sparse=False ensures compatibility with standard Pandas/Scikit-Learn workflows
+    # 7. One-Hot Encoding
     df = pd.get_dummies(df, columns=['location', 'machine_age_group'], prefix=['loc', 'age'])
 
     # --- CLEANUP ---
-    # Drop rows with NaNs (the first 7 days of history per machine will have NaN rolling stats)
-    # Drop helper timestamp columns to avoid leakage
     df = df.dropna().drop(columns=['maintenance_timestamp'])
+    df = df.dropna().drop(columns=['failure_timestamp'])
     
-    return df
-
+    return df, suffix
 
 def print_feature_summary(df):
     console = Console()
@@ -108,23 +112,35 @@ def print_feature_summary(df):
     console.print(table)
     console.print(f"[bold green]Total Features:[/bold green] {len(df.columns)}")
 
-# Call it like this:
-
 if __name__ == "__main__":
-    feature_df = engineer_features()
-    
-    # --- FINAL CLEANUP FOR FEATURE STORE ---
-    # Ensure timestamp is actually a datetime object
-    feature_df['timestamp'] = pd.to_datetime(feature_df['timestamp'])
-    
-    # Save as Parquet for the Feature Store (Offline Path)
-    output_path_parquet = os.path.join(OUTPUT_DIR, 'final_features.parquet')
-    feature_df.to_parquet(output_path_parquet, index=False)
-    
-    # Keep the CSV for your own manual checks if you like
-    output_path_csv = os.path.join(OUTPUT_DIR, 'final_features.csv')
-    feature_df.to_csv(output_path_csv, index=False)
+    parser = argparse.ArgumentParser(description="Generate features with variable rolling window sizes.")
+    parser.add_argument('--window', type=int, default=168, help='Rolling window size in hours (default: 168). Use 48 for 2 days.')
+    args = parser.parse_args()
 
-    print(f"Feature engineering complete. Shape: {feature_df.shape}")
-    print(f"Saved to: {output_path_parquet} and {output_path_csv}")
-    print_feature_summary(feature_df)
+    # --- INTELLIGENT PATH SELECTION ---
+    # Automatically decide which labeled file to load based on the window arg
+    if args.window == 48:
+        # If using 48h features, look for the 2-day target file
+        input_file = 'data/labelled/telemetry_labeled_2d.csv'
+        base_name = "final_features_48h"
+    else:
+        # Default to standard 7-day
+        input_file = 'data/labelled/telemetry_labeled.csv'
+        base_name = "final_features"
+
+    feature_df, file_suffix = engineer_features(window_hours=args.window, input_path=input_file)
+    
+    if feature_df is not None:
+        # Cleanup types
+        feature_df['timestamp'] = pd.to_datetime(feature_df['timestamp'])
+        
+        # Save
+        output_path_parquet = os.path.join(OUTPUT_DIR, f'{base_name}.parquet')
+        output_path_csv = os.path.join(OUTPUT_DIR, f'{base_name}.csv')
+        
+        feature_df.to_parquet(output_path_parquet, index=False)
+        feature_df.to_csv(output_path_csv, index=False)
+
+        print(f"Feature engineering complete. Shape: {feature_df.shape}")
+        print(f"Saved to: {output_path_csv}")
+        print_feature_summary(feature_df)

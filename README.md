@@ -13,6 +13,7 @@
   - [Task 5: Model Implementation \& Training](#task-5-model-implementation--training)
   - [Task 6: Hyperparameter Tuning](#task-6-hyperparameter-tuning)
   - [Task 7: Evaluation Metric \& Reporting](#task-7-evaluation-metric--reporting)
+- [3. Solution Architecture \& MLOps](#3-solution-architecture--mlops)
   - [Task 8: Feature Store Design (Detailed)](#task-8-feature-store-design-detailed)
   - [Task 9: Production MLOps Workflow Document](#task-9-production-mlops-workflow-document)
 
@@ -144,8 +145,9 @@ Output is saved on `data/results/best_params.json`
 
 
 ## Task 7: Evaluation Metric & Reporting 
-Prioritize the Recall metric due to the high cost of False Negatives. Output: Provide the final classification report (including Precision, Recall, F1-Score, and AUC) for both models on the held-out test set. Justify which model is best suited for production deployment based on the achieved metrics and the business context (high False Negative cost). 
-3. Solution Architecture & MLOps  
+Prioritize the Recall metric due to the high cost of False Negatives. 
+Output: Provide the final classification report (including Precision, Recall, F1-Score, and AUC) for both models on the held-out test set. 
+Justify which model is best suited for production deployment based on the achieved metrics and the business context (high False Negative cost). 
 
 **Solution**
 Files `modelling/final_evaluation.py`
@@ -153,6 +155,8 @@ Files `modelling/final_evaluation.py`
 python3 modelling/final_evaluation.py`
 ```
 Output is showed on terminal, best paramenters are saved on `data/results/best_params.json`
+
+# 3. Solution Architecture & MLOps  
 
 ## Task 8: Feature Store Design (Detailed)
 Design the full conceptual workflow for the Feature Store (e.g., using Feast or a cloud-native store like SageMaker/Databricks). Detail how features are computed for offline training (historical data) and how they are retrieved for online inference (real-time prediction) using distinct data paths. 

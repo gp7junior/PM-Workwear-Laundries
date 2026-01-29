@@ -26,3 +26,19 @@ We integrate machine-specific characteristics:
 ## Data Integrity Note
 * **Sorting:** The pipeline strictly enforces Global Chronological Sorting (`timestamp` then `machine_id`) to ensure `merge_asof` functions correctly.
 * **Warm-up Period:** The first 7 days of data for every machine are dropped, as they lack sufficient history to calculate the rolling window statistics.
+
+## How to Run This
+
+For your Standard 7-Day Baseline (Default):
+
+```bash
+python feature_engineering.py
+# Output: data/features/final_features.csv
+```
+
+## For 48-Hour Strategy:
+
+```bash
+python feature_engineering.py --window 48
+# Output: data/features/final_features_48h.csv
+```
