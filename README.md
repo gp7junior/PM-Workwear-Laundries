@@ -112,7 +112,8 @@ python3 feature_construction/feature_engineering.py
 
 ## Task 4: Data Imbalance and Splitting 
 Implement a strategy to handle the imbalanced nature of the labeled dataset (e.g., using class weights in the model, or implementing a mild over/undersampling technique). Clearly define and implement a time-based train/test split (e.g., using the first 80% of time for training and the last 20% for testing) to rigorously prevent time-series leakage. 
-2. Model Development, Optimization, & Evaluation  
+
+**2. Model Development, Optimization, & Evaluation**
 
 **Solution**:
 Files `labelling/pipeline_labelling.py` and `modelling/data_splitting.py`
